@@ -1,0 +1,42 @@
+name: OpenGame Generate
+
+on:
+  workflow_dispatch:
+    inputs:
+      job_id:
+        description: "Prisma Job id to generate"
+        required: false
+        type: string
+  schedule:
+    - cron: "*/5 * * * *"
+
+concurrency:
+  group: opengame-${{ inputs.job_id || 'poll' }}
+  cancel-in-progress: false
+
+jobs:
+  generate:
+    name: Generate playable game
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    permissions:
+      contents: read
+    env:
+      APP_BASE_URL: ${{ vars.APP_BASE_URL || 'https://opengame-astrocade-mvp.vercel.app' }}
+      MINIMAX_TEXT_MODEL: ${{ vars.MINIMAX_TEXT_MODEL }}
+      OPENGAME_GIT_URL: ${{ vars.OPENGAME_GIT_URL }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run OpenGame worker
+        run: npx tsx scripts/run-github-opengame-job.ts "${{ inputs.job_id }}"
